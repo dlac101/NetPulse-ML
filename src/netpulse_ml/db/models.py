@@ -118,6 +118,27 @@ class AgentExecution(Base):
     recommendation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
 
+
+class RouterRegistry(Base):
+    """Managed SmartOS routers for multi-router fleet support."""
+
+    __tablename__ = "router_registry"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    host: Mapped[str] = mapped_column(String(256), nullable=False)
+    username: Mapped[str] = mapped_column(String(64), default="admin")
+    password: Mapped[str] = mapped_column(String(256), default="")
+    model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    firmware: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    mac: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_seen: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+
+
 class ChurnLabel(Base):
     """Manual churn labels for training the churn predictor.
 

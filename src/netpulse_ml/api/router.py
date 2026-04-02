@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from netpulse_ml.api.v1 import (
     agents,
     labels,
+    routers,
     anomalies,
     chat,
     churn,
@@ -28,3 +29,4 @@ api_router.include_router(models.router, tags=["models"])
 api_router.include_router(agents.router, tags=["agents"])
 api_router.include_router(chat.router, tags=["chat"])
 api_router.include_router(labels.router, tags=["labels"])
+api_router.include_router(routers.router, tags=["routers"])
