@@ -116,6 +116,62 @@ class TelemetryBridge:
                 topic = f"smartos/{mac.replace(':', '')}/flowstatd/stats"
                 self._mqtt.publish(topic, json.dumps(payload).encode(), qos=0)
 
+            # Also publish WiFi-like payload for mesh satellite clients
+            # Devices on w5gM.sta* or w6gM.sta* are connected via mesh satellites
+            mesh_clients = []
+            for dev in devices:
+                iface = dev.get("interface", "")
+                if ".sta" in iface:
+                    # This device is connected through a mesh satellite
+                    band = "6GHz" if "6g" in iface else "5GHz" if "5g" in iface else "2.4GHz"
+                    mesh_clients.append({
+                        "mac": dev.get("mac", ""),
+                        "hostname": dev.get("name", ""),
+                        "band": band,
+                        "channel": 0,
+                        "channelWidth": 160 if "6g" in iface else 80,
+                        "phyRateMbps": 0,
+                        "rssi": 0,
+                        "retransmissionRate": 0,
+                        "mcs": 0,
+                        "nss": 1,
+                        "connectedSatellite": iface.split(".")[0] if "." in iface else "",
+                        "rxBytes": dev.get("rx_bytes", 0),
+                        "txBytes": dev.get("tx_bytes", 0),
+                    })
+
+            if mesh_clients:
+                # Derive satellite list from unique interfaces
+                sat_ifaces = set()
+                for mc in mesh_clients:
+                    sat = mc.get("connectedSatellite", "")
+                    if sat:
+                        sat_ifaces.add(sat)
+
+                satellites = [
+                    {
+                        "id": sat,
+                        "hostname": sat,
+                        "mac": sat,
+                        "backhaulDlMbps": 0,
+                        "backhaulUlMbps": 0,
+                        "backhaulBand": "6GHz" if "6g" in sat else "5GHz",
+                        "connectedClients": sum(1 for mc in mesh_clients if mc.get("connectedSatellite") == sat),
+                        "hops": 1,
+                        "status": "online",
+                    }
+                    for sat in sat_ifaces
+                ]
+
+                wifi_payload = {
+                    "clients": mesh_clients,
+                    "satellites": satellites,
+                    "airtime": [],
+                }
+                topic = f"smartos/{device_id}/wifi"
+                self._mqtt.publish(topic, json.dumps(wifi_payload).encode(), qos=0)
+                log.debug("Mesh telemetry published", satellites=len(satellites), mesh_clients=len(mesh_clients))
+
         except Exception as e:
             log.debug("FlowStatd poll failed", error=str(e))
 
