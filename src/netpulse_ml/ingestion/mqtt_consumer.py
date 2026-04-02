@@ -1,9 +1,13 @@
-"""Async MQTT consumer that subscribes to SmartOS telemetry topics."""
+"""Async MQTT consumer using gmqtt (pure async, works on Windows + Linux).
+
+Subscribes to SmartOS telemetry topics and routes messages to the feature engine.
+"""
 
 import asyncio
 
 import structlog
-from aiomqtt import Client, MqttError
+from gmqtt import Client as MQTTClient
+from gmqtt.mqtt.constants import MQTTv311
 
 from netpulse_ml.config import Settings
 from netpulse_ml.ingestion.parsers import parse_payload
@@ -19,9 +23,13 @@ class MQTTConsumer:
         self._running = True
         self._message_count = 0
         self._error_count = 0
+        self._connected = asyncio.Event()
+        self._client: MQTTClient | None = None
 
     def stop(self) -> None:
         self._running = False
+        if self._client:
+            asyncio.ensure_future(self._client.disconnect())
 
     @property
     def message_count(self) -> int:
@@ -29,67 +37,79 @@ class MQTTConsumer:
 
     @property
     def is_running(self) -> bool:
-        return self._running
+        return self._running and self._connected.is_set()
 
     async def run(self) -> None:
         """Main consumer loop with automatic reconnection."""
         while self._running:
             try:
                 await self._consume()
-            except MqttError as e:
-                log.warning("MQTT connection lost, reconnecting in 5s", error=str(e))
-                await asyncio.sleep(5)
             except asyncio.CancelledError:
                 log.info("MQTT consumer cancelled")
                 break
             except Exception as e:
-                log.error("Unexpected MQTT error", error=str(e))
+                log.warning("MQTT connection error, reconnecting in 5s", error=str(e))
+                self._connected.clear()
                 await asyncio.sleep(5)
 
     async def _consume(self) -> None:
-        """Connect and consume messages."""
-        connect_kwargs: dict = {
-            "hostname": self._settings.mqtt_broker,
-            "port": self._settings.mqtt_port,
-        }
+        """Connect, subscribe, and process messages."""
+        client = MQTTClient(client_id="netpulse-ml")
+        self._client = client
+
         if self._settings.mqtt_username:
-            connect_kwargs["username"] = self._settings.mqtt_username
-            connect_kwargs["password"] = self._settings.mqtt_password
+            client.set_auth_credentials(
+                self._settings.mqtt_username,
+                self._settings.mqtt_password or None,
+            )
 
-        async with Client(**connect_kwargs) as client:
-            for topic in self._settings.mqtt_topic_list:
-                await client.subscribe(topic, qos=1)
-                log.info("Subscribed to MQTT topic", topic=topic)
+        # Set up callbacks
+        client.on_connect = self._on_connect
+        client.on_message = self._on_message
+        client.on_disconnect = self._on_disconnect
 
-            async for message in client.messages:
-                if not self._running:
-                    break
+        await client.connect(
+            self._settings.mqtt_broker,
+            port=self._settings.mqtt_port,
+            version=MQTTv311,
+        )
 
-                topic_str = str(message.topic)
-                payload_bytes = message.payload
-                if isinstance(payload_bytes, str):
-                    payload_bytes = payload_bytes.encode()
+        self._connected.set()
+        log.info("MQTT connected", broker=self._settings.mqtt_broker)
 
-                self._message_count += 1
+        # Keep running until stopped
+        while self._running:
+            await asyncio.sleep(1)
 
-                try:
-                    device_id, msg_type, parsed = parse_payload(topic_str, payload_bytes)
-                    if parsed is not None:
-                        await self._route_message(device_id, msg_type, parsed)
-                except Exception as e:
-                    self._error_count += 1
-                    log.warning(
-                        "Failed to process MQTT message",
-                        topic=topic_str,
-                        error=str(e),
-                    )
+    def _on_connect(self, client, flags, rc, properties) -> None:
+        """Called when MQTT connection is established."""
+        for topic in self._settings.mqtt_topic_list:
+            client.subscribe(topic, qos=1)
+            log.info("Subscribed to MQTT topic", topic=topic)
+
+    def _on_disconnect(self, client, packet, exc=None) -> None:
+        """Called when MQTT connection is lost."""
+        self._connected.clear()
+        if self._running:
+            log.warning("MQTT disconnected")
+
+    def _on_message(self, client, topic: str, payload: bytes, qos, properties) -> None:
+        """Called for each received message. Schedules async processing."""
+        self._message_count += 1
+
+        try:
+            device_id, msg_type, parsed = parse_payload(topic, payload)
+            if parsed is not None:
+                # Schedule async processing on the event loop
+                asyncio.ensure_future(self._route_message(device_id, msg_type, parsed))
+        except Exception as e:
+            self._error_count += 1
+            log.warning("Failed to process MQTT message", topic=topic, error=str(e))
+
+        # gmqtt requires returning 0 to acknowledge
+        return 0
 
     async def _route_message(self, device_id: str, msg_type: str, payload: object) -> None:
-        """Route a parsed message to the feature computation pipeline.
-
-        In Phase 1, this computes features and writes to the feature store.
-        The feature computation is imported lazily to avoid circular imports.
-        """
+        """Route a parsed message to the feature computation pipeline."""
         from netpulse_ml.features.store import feature_store
-
         await feature_store.process_message(device_id, msg_type, payload)

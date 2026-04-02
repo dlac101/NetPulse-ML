@@ -58,17 +58,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     log.info("Model predictor initialized", models_loaded=predictor.loaded_model_names)
 
     # Start MQTT consumer as background task
-    # Skip on Windows: aiomqtt uses paho-mqtt which requires SelectorEventLoop,
-    # but uvicorn on Windows uses ProactorEventLoop (no add_reader/add_writer support)
-    import sys
-    mqtt_task = None
-    if sys.platform != "win32":
-        mqtt = MQTTConsumer(settings)
-        mqtt_task = asyncio.create_task(mqtt.run())
-        app.state.mqtt_consumer = mqtt
-        log.info("MQTT consumer started", broker=settings.mqtt_broker)
-    else:
-        log.warning("MQTT consumer skipped on Windows (ProactorEventLoop incompatible with paho-mqtt)")
+    mqtt = MQTTConsumer(settings)
+    mqtt_task = asyncio.create_task(mqtt.run())
+    app.state.mqtt_consumer = mqtt
+    log.info("MQTT consumer started", broker=settings.mqtt_broker)
 
     # Start training scheduler
     scheduler = create_training_scheduler()
@@ -113,13 +106,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await ollama.close()
     agent_orch.stop_scheduler()
     scheduler.shutdown(wait=False)
-    if mqtt_task and hasattr(app.state, "mqtt_consumer"):
-        app.state.mqtt_consumer.stop()
-        mqtt_task.cancel()
-        try:
-            await mqtt_task
-        except asyncio.CancelledError:
-            pass
+    mqtt.stop()
+    mqtt_task.cancel()
+    try:
+        await mqtt_task
+    except asyncio.CancelledError:
+        pass
     await engine.dispose()
     log.info("Shutdown complete")
 

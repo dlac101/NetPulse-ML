@@ -17,7 +17,7 @@ dependencies = [
     # Redis
     "redis[hiredis]>=5.2.0",
     # MQTT
-    "aiomqtt>=2.3.0",
+    "gmqtt>=0.7.0",
     # ML - Core
     "scikit-learn>=1.6.0",
     "statsmodels>=0.14.4",
