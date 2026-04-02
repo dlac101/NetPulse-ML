@@ -54,10 +54,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     log.info("Model predictor initialized", models_loaded=predictor.loaded_model_names)
 
     # Start MQTT consumer as background task
-    mqtt = MQTTConsumer(settings)
-    mqtt_task = asyncio.create_task(mqtt.run())
-    app.state.mqtt_consumer = mqtt
-    log.info("MQTT consumer started", broker=settings.mqtt_broker)
+    # Skip on Windows: aiomqtt uses paho-mqtt which requires SelectorEventLoop,
+    # but uvicorn on Windows uses ProactorEventLoop (no add_reader/add_writer support)
+    import sys
+    mqtt_task = None
+    if sys.platform != "win32":
+        mqtt = MQTTConsumer(settings)
+        mqtt_task = asyncio.create_task(mqtt.run())
+        app.state.mqtt_consumer = mqtt
+        log.info("MQTT consumer started", broker=settings.mqtt_broker)
+    else:
+        log.warning("MQTT consumer skipped on Windows (ProactorEventLoop incompatible with paho-mqtt)")
 
     # Start training scheduler
     scheduler = create_training_scheduler()
@@ -71,24 +78,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.agent_orchestrator = agent_orch
     log.info("Agent orchestrator started")
 
-    # Initialize LLM / RAG pipeline
+    # Initialize LLM / RAG pipeline (non-fatal: API works without LLM)
     ollama = OllamaProvider()
-    embedder = Embedder()
-    await embedder.load_async()  # Offload CPU-bound model loading to thread
-    vector_store = VectorStore()
-    await vector_store.initialize()
-    indexer = Indexer(embedder, vector_store)
-    await indexer.index_project_docs()
-    rag = RAGPipeline(embedder, vector_store, ollama, predictor)
+    try:
+        embedder = Embedder()
+        await embedder.load_async()
+        vector_store = VectorStore()
+        await vector_store.initialize()
+        indexer = Indexer(embedder, vector_store)
+        await indexer.index_project_docs()
+        rag = RAGPipeline(embedder, vector_store, ollama, predictor)
 
-    app.state.ollama_provider = ollama
-    app.state.embedder = embedder
-    app.state.vector_store = vector_store
-    app.state.indexer = indexer
-    app.state.rag_pipeline = rag
+        app.state.ollama_provider = ollama
+        app.state.embedder = embedder
+        app.state.vector_store = vector_store
+        app.state.indexer = indexer
+        app.state.rag_pipeline = rag
 
-    ollama_ok = await ollama.is_available()
-    log.info("LLM/RAG pipeline initialized", ollama_available=ollama_ok)
+        ollama_ok = await ollama.is_available()
+        log.info("LLM/RAG pipeline initialized", ollama_available=ollama_ok)
+    except Exception as e:
+        log.warning("LLM/RAG pipeline failed to initialize (non-fatal)", error=str(e))
+        app.state.ollama_provider = ollama
 
     yield
 
@@ -97,12 +108,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await ollama.close()
     agent_orch.stop_scheduler()
     scheduler.shutdown(wait=False)
-    mqtt.stop()
-    mqtt_task.cancel()
-    try:
-        await mqtt_task
-    except asyncio.CancelledError:
-        pass
+    if mqtt_task and hasattr(app.state, "mqtt_consumer"):
+        app.state.mqtt_consumer.stop()
+        mqtt_task.cancel()
+        try:
+            await mqtt_task
+        except asyncio.CancelledError:
+            pass
     await engine.dispose()
     log.info("Shutdown complete")
 

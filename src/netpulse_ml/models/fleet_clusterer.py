@@ -5,14 +5,20 @@ Two-stage pipeline:
   2. KMeans segments non-outlier devices into clusters
 """
 
+from pathlib import Path
+
+import joblib
 import numpy as np
 import pandas as pd
+import structlog
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
 from netpulse_ml.models.base import ModelWrapper
+
+log = structlog.get_logger()
 
 CLUSTER_FEATURES = [
     "dl_mbps_latest",
@@ -48,6 +54,39 @@ class FleetClusterer(ModelWrapper):
         # Stored from training for predict-time outlier detection
         self._dbscan_eps: float = 0.5
         self._dbscan_core_samples: np.ndarray | None = None
+
+    def save(self, path: Path) -> None:
+        """Save all clusterer state (scaler, DBSCAN, KMeans, core samples)."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        artifact = {
+            "feature_names": self._feature_names,
+            "name": self.name,
+            "version": self.version,
+            "scaler": self._scaler,
+            "dbscan": self._dbscan,
+            "kmeans": self._kmeans,
+            "centroids": self._centroids,
+            "dbscan_eps": self._dbscan_eps,
+            "dbscan_core_samples": self._dbscan_core_samples,
+            "n_clusters": self._n_clusters,
+        }
+        joblib.dump(artifact, path)
+        log.info("Clusterer saved", name=self.name, path=str(path))
+
+    def load(self, path: Path) -> None:
+        """Load all clusterer state."""
+        artifact = joblib.load(path)
+        self._feature_names = artifact["feature_names"]
+        self.version = artifact.get("version", self.version)
+        self._scaler = artifact["scaler"]
+        self._dbscan = artifact["dbscan"]
+        self._kmeans = artifact["kmeans"]
+        self._centroids = artifact["centroids"]
+        self._dbscan_eps = artifact["dbscan_eps"]
+        self._dbscan_core_samples = artifact["dbscan_core_samples"]
+        self._n_clusters = artifact["n_clusters"]
+        self._is_fitted = True
+        log.info("Clusterer loaded", name=self.name, path=str(path))
 
     def train(self, X: pd.DataFrame, y: pd.Series | None = None) -> dict[str, float]:
         """Train the two-stage clustering pipeline.

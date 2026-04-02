@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
+import orjson
 import structlog
 from sqlalchemy import text
 
@@ -62,7 +63,7 @@ class VectorStore:
                     "id": doc_id,
                     "content": content,
                     "embedding": str(embedding),
-                    "metadata": meta,
+                    "metadata": orjson.dumps(meta).decode(),
                     "created_at": datetime.now(timezone.utc),
                 },
             )
@@ -97,13 +98,14 @@ class VectorStore:
             filter_clause = "WHERE " + " AND ".join(conditions)
 
         async with async_session_factory() as session:
+            # Use $N-style params to avoid conflict between :name and ::vector cast
             result = await session.execute(
                 text(f"""
                     SELECT id, content, metadata,
-                           1 - (embedding <=> :embedding::vector) AS similarity
+                           1 - (embedding <=> cast(:embedding AS vector)) AS similarity
                     FROM document_embeddings
                     {filter_clause}
-                    ORDER BY embedding <=> :embedding::vector
+                    ORDER BY embedding <=> cast(:embedding AS vector)
                     LIMIT :top_k
                 """),
                 params,
