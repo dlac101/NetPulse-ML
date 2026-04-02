@@ -1,7 +1,6 @@
 """Training pipeline: orchestrates train -> evaluate -> register for all models."""
 
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 
 import structlog
 
@@ -29,9 +28,9 @@ async def train_anomaly_detector() -> dict[str, float]:
     metrics = model.train(fleet_df)
 
     # Save artifact
-    version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    version = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     model.version = version
-    artifact_path = settings.model_dir / f"anomaly_detector.joblib"
+    artifact_path = settings.model_dir / "anomaly_detector.joblib"
     model.save(artifact_path)
 
     # Register in DB
@@ -72,7 +71,7 @@ async def train_churn_predictor() -> dict[str, float]:
     model = ChurnPredictor()
     metrics = model.train(fleet_df, y)
 
-    version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    version = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     model.version = version
     artifact_path = settings.model_dir / "churn_predictor.joblib"
     model.save(artifact_path)
@@ -95,7 +94,7 @@ async def train_fleet_clusterer() -> dict[str, float]:
     model = FleetClusterer()
     metrics = model.train(fleet_df)
 
-    version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    version = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     model.version = version
     artifact_path = settings.model_dir / "fleet_clusterer.joblib"
     model.save(artifact_path)

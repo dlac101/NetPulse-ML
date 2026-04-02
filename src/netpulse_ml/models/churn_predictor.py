@@ -162,7 +162,7 @@ class ChurnPredictor(ModelWrapper):
         self._is_fitted = True
 
         # Evaluation on full dataset
-        y_pred = self._pipeline.predict(X_clean)
+        self._pipeline.predict(X_clean)
         y_proba = self._pipeline.predict_proba(X_clean)[:, 1]
 
         return {
@@ -218,7 +218,7 @@ class ChurnPredictor(ModelWrapper):
         all_features = CATEGORICAL_FEATURES + numerical_features
 
         scored = sorted(
-            zip(all_features, importances),
+            zip(all_features, importances, strict=False),
             key=lambda x: x[1],
             reverse=True,
         )

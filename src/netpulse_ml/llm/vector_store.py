@@ -1,7 +1,7 @@
 """pgvector-based vector store on TimescaleDB for RAG document retrieval."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import orjson
 import structlog
@@ -64,7 +64,7 @@ class VectorStore:
                     "content": content,
                     "embedding": str(embedding),
                     "metadata": orjson.dumps(meta).decode(),
-                    "created_at": datetime.now(timezone.utc),
+                    "created_at": datetime.now(UTC),
                 },
             )
             await session.commit()

@@ -1,6 +1,6 @@
 """QoE forecast API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query
 
@@ -21,7 +21,7 @@ async def get_qoe_forecast(
 ) -> QoEForecastResponse:
     """Get QoE forecast with confidence intervals for a device."""
     forecaster = predictor.qoe_forecaster
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     history = await store.read_features(device_id)
 

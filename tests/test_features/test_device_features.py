@@ -14,7 +14,6 @@ from netpulse_ml.ingestion.validators import (
     QoECategory,
     QoEPayload,
     SpeedMetrics,
-    WifiAirtime,
     WifiClient,
     WifiPayload,
 )

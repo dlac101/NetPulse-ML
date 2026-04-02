@@ -6,7 +6,7 @@ running the LangGraph remediation workflow for each flagged device.
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -84,11 +84,11 @@ class AgentOrchestrator:
 
     async def _do_scan(self) -> int:
         """Internal scan implementation (called under lock)."""
-        self._last_scan_at = datetime.now(timezone.utc)
+        self._last_scan_at = datetime.now(UTC)
         processed = 0
 
         # Prune expired cooldowns to prevent memory leak
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=self._settings.agent_cooldown_hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=self._settings.agent_cooldown_hours)
         self._cooldowns = {k: v for k, v in self._cooldowns.items() if v > cutoff}
 
         try:
@@ -117,7 +117,7 @@ class AgentOrchestrator:
             log.info("Fleet scan complete", total=len(fleet_df), flagged=len(flagged_devices))
 
             # Run agent for each flagged device (sequential to limit load)
-            for device_id, score in flagged_devices:
+            for device_id, _score in flagged_devices:
                 if self._is_on_cooldown(device_id):
                     continue
                 await self.run_for_device(device_id)
@@ -134,7 +134,7 @@ class AgentOrchestrator:
         Returns the final agent state.
         """
         execution_id = str(uuid.uuid4())
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         log.info("Agent run starting", device_id=device_id, execution_id=execution_id)
 
@@ -149,7 +149,7 @@ class AgentOrchestrator:
                 self._graph.ainvoke(initial_state), timeout=300
             )
             status = final_state.get("status", "unknown")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             log.error("Agent run timed out", device_id=device_id)
             final_state = {**initial_state, "status": "failed", "error": "timeout"}
             status = "failed"
@@ -158,7 +158,7 @@ class AgentOrchestrator:
             final_state = {**initial_state, "status": "failed", "error": str(e)}
             status = "failed"
 
-        completed_at = datetime.now(timezone.utc)
+        completed_at = datetime.now(UTC)
 
         # Record execution
         await self._log_execution(
@@ -189,7 +189,7 @@ class AgentOrchestrator:
         if last_run is None:
             return False
         cooldown = timedelta(hours=self._settings.agent_cooldown_hours)
-        return datetime.now(timezone.utc) - last_run < cooldown
+        return datetime.now(UTC) - last_run < cooldown
 
     async def _log_execution(
         self,

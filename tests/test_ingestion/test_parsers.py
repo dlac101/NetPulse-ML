@@ -4,7 +4,7 @@ import orjson
 import pytest
 
 from netpulse_ml.ingestion.parsers import parse_payload, parse_topic
-from netpulse_ml.ingestion.validators import QoEPayload, BbstPayload
+from netpulse_ml.ingestion.validators import QoEPayload
 
 
 class TestParseTopic:

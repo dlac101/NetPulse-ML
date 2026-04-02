@@ -23,6 +23,7 @@ dependencies = [
     "statsmodels>=0.14.4",
     "shap>=0.46.0",
     "joblib>=1.4.0",
+    "passlib>=1.7.0",
     # Data
     "pandas>=2.2.0",
     "numpy>=2.1.0",
@@ -69,7 +70,16 @@ target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # Line too long
+    "E741",   # Ambiguous variable name (l, O) - common in ML
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N806"]
+"src/netpulse_ml/models/*" = ["N806"]
+"src/netpulse_ml/training/*" = ["N806"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -2,25 +2,24 @@
 
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from netpulse_ml.agents.orchestrator import AgentOrchestrator
 from netpulse_ml.api.router import api_router
 from netpulse_ml.config import settings
 from netpulse_ml.db.engine import engine, init_db
-from netpulse_ml.dependencies import verify_api_key
 from netpulse_ml.ingestion.mqtt_consumer import MQTTConsumer
-from netpulse_ml.agents.orchestrator import AgentOrchestrator
 from netpulse_ml.llm.embedder import Embedder
 from netpulse_ml.llm.indexer import Indexer
 from netpulse_ml.llm.provider import OllamaProvider
-from netpulse_ml.serving.cache import close_redis, get_redis
 from netpulse_ml.llm.rag import RAGPipeline
 from netpulse_ml.llm.vector_store import VectorStore
+from netpulse_ml.serving.cache import close_redis, get_redis
 from netpulse_ml.serving.predictor import Predictor
 from netpulse_ml.training.scheduler import create_training_scheduler
 

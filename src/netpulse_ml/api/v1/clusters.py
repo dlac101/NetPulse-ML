@@ -1,11 +1,10 @@
 """Fleet clustering/segmentation API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
 from netpulse_ml.api.schemas import ClusterInfo, FleetClustersResponse, OutlierInfo, PaginationMeta
-from netpulse_ml.config import settings
 from netpulse_ml.dependencies import FeatureStoreDep, PredictorDep, run_in_executor
 from netpulse_ml.serving.cache import get_cached, make_cache_key, set_cached
 
@@ -19,7 +18,7 @@ async def get_fleet_clusters(
 ) -> FleetClustersResponse:
     """Get fleet cluster assignments and characteristics."""
     clusterer = predictor.fleet_clusterer
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if not clusterer.is_fitted:
         raise HTTPException(status_code=503, detail="Fleet clusterer not yet trained")

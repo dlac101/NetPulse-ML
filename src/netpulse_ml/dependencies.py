@@ -1,8 +1,9 @@
 """FastAPI dependency injection providers."""
 
 import asyncio
+from collections.abc import AsyncGenerator, Callable
 from functools import partial
-from typing import Annotated, Any, AsyncGenerator, Callable
+from typing import Annotated, Any
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession

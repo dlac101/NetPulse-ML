@@ -1,6 +1,6 @@
 """Model registry: version, store, and retrieve trained model artifacts."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import structlog
@@ -35,7 +35,7 @@ async def register_model(
                 )
                 await session.execute(
                     update(ModelRegistry)
-                    .where(ModelRegistry.name == model.name, ModelRegistry.is_active == True)
+                    .where(ModelRegistry.name == model.name, ModelRegistry.is_active)
                     .values(is_active=False)
                 )
 
@@ -46,7 +46,7 @@ async def register_model(
                 artifact_path=str(artifact_path),
                 metrics=metrics,
                 feature_names=model.feature_names,
-                trained_at=datetime.now(timezone.utc),
+                trained_at=datetime.now(UTC),
                 is_active=activate,
             )
             session.add(entry)
@@ -65,7 +65,7 @@ async def get_active_model_path(name: str) -> Path | None:
     async with async_session_factory() as session:
         result = await session.execute(
             select(ModelRegistry)
-            .where(ModelRegistry.name == name, ModelRegistry.is_active == True)
+            .where(ModelRegistry.name == name, ModelRegistry.is_active)
             .order_by(ModelRegistry.trained_at.desc())
             .limit(1)
         )

@@ -150,7 +150,7 @@ class FleetClusterer(ModelWrapper):
             max_iter=300,
             random_state=42,
         )
-        kmeans_labels = self._kmeans.fit_predict(X_non_outlier)
+        self._kmeans.fit_predict(X_non_outlier)
         self._centroids = self._kmeans.cluster_centers_
 
         self._is_fitted = True

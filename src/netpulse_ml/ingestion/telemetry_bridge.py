@@ -10,7 +10,7 @@ Usage:
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from gmqtt import Client as MQTTClient
@@ -61,7 +61,7 @@ class TelemetryBridge:
     async def _poll_and_publish(self) -> None:
         """Poll all telemetry sources and publish to MQTT."""
         device_id = self._device_mac
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         # 1. FlowStatd device stats
         await self._publish_flowstats(device_id, now)
@@ -127,7 +127,7 @@ class TelemetryBridge:
             clients = []
             airtime = []
 
-            for radio_name, radio_data in wifi.items():
+            for _radio_name, radio_data in wifi.items():
                 if not isinstance(radio_data, dict) or "config" not in radio_data:
                     continue
 

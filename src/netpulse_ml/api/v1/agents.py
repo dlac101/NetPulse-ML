@@ -1,9 +1,9 @@
 """Agent orchestrator API endpoints."""
 
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from sqlalchemy import select, func as sqlfunc
+from sqlalchemy import func as sqlfunc
+from sqlalchemy import select
 
 from netpulse_ml.api.schemas import (
     AgentConfigRequest,

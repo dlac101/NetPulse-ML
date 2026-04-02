@@ -1,6 +1,6 @@
 """Ollama LLM provider: async HTTP client for local model inference."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import httpx
 import orjson

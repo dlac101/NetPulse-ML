@@ -5,9 +5,9 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 
 from netpulse_ml.api.schemas import ModelInfo, ModelListResponse
-from netpulse_ml.dependencies import PredictorDep, run_in_executor
-from netpulse_ml.serving.cache import invalidate
+from netpulse_ml.dependencies import PredictorDep
 from netpulse_ml.models.registry import list_models
+from netpulse_ml.serving.cache import invalidate
 from netpulse_ml.training.pipeline import (
     train_all,
     train_anomaly_detector,
@@ -75,7 +75,7 @@ async def retrain_model(
         try:
             metrics = await trainer()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Training failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Training failed: {e}") from None
 
         predictor.reload_model(model_name)
 
@@ -95,7 +95,7 @@ async def retrain_all_models(predictor: PredictorDep) -> dict:
         try:
             results = await train_all()
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Training failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Training failed: {e}") from None
 
         for name in results:
             predictor.reload_model(name)

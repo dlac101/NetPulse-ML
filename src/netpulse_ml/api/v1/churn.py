@@ -1,6 +1,6 @@
 """Churn prediction API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -40,7 +40,7 @@ async def list_churn_predictions(
 
     # Offload CPU-bound inference to thread pool
     scores = await run_in_executor(model.predict, fleet_df)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     filter_levels = set()
     if risk_level:
@@ -87,7 +87,7 @@ async def get_subscriber_churn(
 ) -> ChurnPredictionResponse:
     """Get churn prediction for a specific subscriber."""
     model = predictor.churn_predictor
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     features = await store.get_latest_features(subscriber_id)
 

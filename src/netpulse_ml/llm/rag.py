@@ -1,13 +1,17 @@
 """RAG pipeline: embed query -> retrieve context -> generate response."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import structlog
 
 from netpulse_ml.config import settings
 from netpulse_ml.features.store import feature_store
 from netpulse_ml.llm.embedder import Embedder
-from netpulse_ml.llm.prompts import format_device_diagnosis, format_fleet_insight, format_technician_qa
+from netpulse_ml.llm.prompts import (
+    format_device_diagnosis,
+    format_fleet_insight,
+    format_technician_qa,
+)
 from netpulse_ml.llm.provider import OllamaProvider
 from netpulse_ml.llm.vector_store import VectorStore
 from netpulse_ml.serving.predictor import Predictor

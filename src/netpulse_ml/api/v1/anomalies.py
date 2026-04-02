@@ -1,6 +1,6 @@
 """Anomaly detection API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -46,7 +46,7 @@ async def list_anomalies(
 
     # Offload CPU-bound inference to thread pool
     scores = await run_in_executor(detector.predict, fleet_df)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     items = []
     for i, (device_id, row) in enumerate(fleet_df.iterrows()):
@@ -90,7 +90,7 @@ async def get_device_anomaly(
     """Get anomaly score and contributing features for a specific device."""
     detector = predictor.anomaly_detector
     features = await store.get_latest_features(device_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if not detector.is_fitted:
         return AnomalyScoreResponse(

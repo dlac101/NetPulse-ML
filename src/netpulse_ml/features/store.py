@@ -1,7 +1,7 @@
 """Feature store: read/write device features to TimescaleDB."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import structlog
@@ -73,7 +73,7 @@ class FeatureStore:
     ) -> None:
         """Write a feature snapshot to TimescaleDB with retry on transient failure."""
         if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.now(UTC)
 
         for attempt in range(3):
             try:
@@ -106,7 +106,7 @@ class FeatureStore:
         Returns a DataFrame with timestamp index and feature columns (from JSONB).
         """
         if to_ts is None:
-            to_ts = datetime.now(timezone.utc)
+            to_ts = datetime.now(UTC)
         if from_ts is None:
             from_ts = to_ts - timedelta(days=7)
 

@@ -1,6 +1,6 @@
 """ML recommendation API endpoints."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select, update
@@ -63,7 +63,7 @@ async def approve_recommendation(
         .where(Recommendation.id == rec_id)
         .values(
             status="approved",
-            executed_at=datetime.now(timezone.utc),
+            executed_at=datetime.now(UTC),
             executed_by=body.executedBy,
         )
     )

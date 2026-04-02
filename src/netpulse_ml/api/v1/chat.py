@@ -1,15 +1,15 @@
 """Chat and insights API endpoints (REST + WebSocket)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 
 from netpulse_ml.api.schemas import ChatRequest, ChatResponse, InsightResponse
 from netpulse_ml.config import settings
+from netpulse_ml.llm.rag import RAGPipeline
 
 log = structlog.get_logger()
-from netpulse_ml.llm.rag import RAGPipeline
 
 router = APIRouter()
 
@@ -31,11 +31,11 @@ async def fleet_insight(request: Request) -> InsightResponse:
         summary = await rag.fleet_insight()
     except Exception as e:
         log.error("LLM generation failed", error=str(e), error_type=type(e).__name__)
-        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable") from None
 
     return InsightResponse(
         content=summary,
-        generatedAt=datetime.now(timezone.utc),
+        generatedAt=datetime.now(UTC),
         model=request.app.state.ollama_provider.model_name,
     )
 
@@ -49,11 +49,11 @@ async def device_insight(request: Request, device_id: str) -> InsightResponse:
         diagnosis = await rag.device_diagnosis(device_id)
     except Exception as e:
         log.error("LLM generation failed", error=str(e), error_type=type(e).__name__)
-        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable") from None
 
     return InsightResponse(
         content=diagnosis,
-        generatedAt=datetime.now(timezone.utc),
+        generatedAt=datetime.now(UTC),
         model=request.app.state.ollama_provider.model_name,
     )
 
@@ -67,12 +67,12 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         answer = await rag.chat(body.message)
     except Exception as e:
         log.error("LLM generation failed", error=str(e), error_type=type(e).__name__)
-        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable") from None
 
     return ChatResponse(
         message=body.message,
         response=answer,
-        generatedAt=datetime.now(timezone.utc),
+        generatedAt=datetime.now(UTC),
         model=request.app.state.ollama_provider.model_name,
     )
 
