@@ -118,6 +118,26 @@ class AgentExecution(Base):
     recommendation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
 
+class ChurnLabel(Base):
+    """Manual churn labels for training the churn predictor.
+
+    Labels are provided by operators when a subscriber cancels, files a complaint,
+    or shows retention-worthy behavior. Used as training data for the churn model.
+    """
+
+    __tablename__ = "churn_labels"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    subscriber_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    device_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    churned: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    labeled_by: Mapped[str] = mapped_column(String(64), default="manual")
+    labeled_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+
+
 class ClusterAssignment(Base):
     """Fleet cluster assignments refreshed nightly."""
 
