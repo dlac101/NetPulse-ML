@@ -1,0 +1,68 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: netpulse-timescaledb
+    environment:
+      POSTGRES_USER: netpulse
+      POSTGRES_PASSWORD: netpulse
+      POSTGRES_DB: netpulse_ml
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netpulse -d netpulse_ml"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: netpulse-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    container_name: netpulse-mlflow
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://netpulse:netpulse@timescaledb:5432/netpulse_ml
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri postgresql://netpulse:netpulse@timescaledb:5432/netpulse_ml
+      --default-artifact-root /mlflow/artifacts
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: netpulse-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+volumes:
+  timescale_data:
+  redis_data:
+  mlflow_artifacts:
+  mosquitto_data:
+  mosquitto_log:
