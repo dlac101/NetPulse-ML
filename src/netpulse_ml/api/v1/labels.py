@@ -1,6 +1,6 @@
 """Churn label management API endpoints."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -93,7 +93,7 @@ async def churn_label_stats(db: DB) -> dict:
     total = (await db.execute(select(func.count()).select_from(ChurnLabel))).scalar() or 0
     churned = (
         await db.execute(
-            select(func.count()).select_from(ChurnLabel).where(ChurnLabel.churned == True)
+            select(func.count()).select_from(ChurnLabel).where(ChurnLabel.churned)
         )
     ).scalar() or 0
 

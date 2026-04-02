@@ -4,17 +4,17 @@ from fastapi import APIRouter, Depends
 
 from netpulse_ml.api.v1 import (
     agents,
-    labels,
-    routers,
-    websocket_updates,
     anomalies,
     chat,
     churn,
     clusters,
     forecasts,
     health,
+    labels,
     models,
     recommendations,
+    routers,
+    websocket_updates,
 )
 from netpulse_ml.dependencies import verify_api_key
 

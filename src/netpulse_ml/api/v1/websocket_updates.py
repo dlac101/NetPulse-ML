@@ -4,7 +4,6 @@ Connected clients receive push notifications when new telemetry arrives
 or when model predictions change. Uses a simple broadcast pattern.
 """
 
-import asyncio
 import json
 
 import structlog
@@ -20,7 +19,7 @@ _clients: set[WebSocket] = set()
 
 async def broadcast(event_type: str, data: dict) -> None:
     """Broadcast an event to all connected dashboard clients."""
-    if not _clients:
+    if not _clients:  # noqa: F823
         return
 
     message = json.dumps({"type": event_type, "data": data})

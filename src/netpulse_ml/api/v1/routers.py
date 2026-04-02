@@ -1,6 +1,5 @@
 """Router fleet management API endpoints."""
 
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
