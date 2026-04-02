@@ -87,7 +87,7 @@ async def trigger_agent(
     final_state = await orch.run_for_device(device_id)
 
     return AgentTriggerResponse(
-        executionId=final_state.get("recommendation_id", ""),
+        executionId=final_state.get("recommendation_id", "") or device_id,
         deviceId=device_id,
         status=final_state.get("status", "unknown"),
         diagnosis=final_state.get("diagnosis"),

@@ -216,7 +216,6 @@ async def verify_node(state: RemediationState, predictor: Predictor) -> dict:
     but the structure is in place for real verification).
     """
     device_id = state["device_id"]
-    diagnosis = state.get("diagnosis", "")
 
     features = await feature_store.get_latest_features(device_id)
     if not features:

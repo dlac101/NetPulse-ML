@@ -23,6 +23,10 @@ class OllamaProvider:
         self._model = model or settings.ollama_model
         self._client = httpx.AsyncClient(timeout=120.0)
 
+    @property
+    def model_name(self) -> str:
+        return self._model
+
     async def generate(
         self,
         prompt: str,

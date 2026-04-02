@@ -32,7 +32,7 @@ async def fleet_insight(request: Request) -> InsightResponse:
     return InsightResponse(
         content=summary,
         generatedAt=datetime.now(timezone.utc),
-        model=request.app.state.ollama_provider._model,
+        model=request.app.state.ollama_provider.model_name,
     )
 
 
@@ -49,7 +49,7 @@ async def device_insight(request: Request, device_id: str) -> InsightResponse:
     return InsightResponse(
         content=diagnosis,
         generatedAt=datetime.now(timezone.utc),
-        model=request.app.state.ollama_provider._model,
+        model=request.app.state.ollama_provider.model_name,
     )
 
 
@@ -67,7 +67,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         message=body.message,
         response=answer,
         generatedAt=datetime.now(timezone.utc),
-        model=request.app.state.ollama_provider._model,
+        model=request.app.state.ollama_provider.model_name,
     )
 
 

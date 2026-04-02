@@ -6,7 +6,6 @@ from pathlib import Path
 import structlog
 
 from netpulse_ml.config import settings
-from netpulse_ml.features.store import feature_store
 from netpulse_ml.llm.embedder import Embedder
 from netpulse_ml.llm.vector_store import VectorStore
 
