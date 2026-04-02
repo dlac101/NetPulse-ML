@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     agent_enable_auto_execute: bool = False  # Safety: disabled by default
     agent_verify_delay_minutes: int = 15
 
+    # SmartOS Router Access
+    smartos_host: str = "192.168.0.1"
+    smartos_username: str = "root"
+    smartos_password: str = ""  # Set in .env
+    smartos_use_mock: bool = True  # False = use real ubus API calls
+
     # Notifications
     notifications_enabled: bool = True
     smtp_host: str = ""
