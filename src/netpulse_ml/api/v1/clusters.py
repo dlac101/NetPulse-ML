@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 
 from netpulse_ml.api.schemas import ClusterInfo, FleetClustersResponse, OutlierInfo, PaginationMeta
+from netpulse_ml.config import settings
 from netpulse_ml.dependencies import FeatureStoreDep, PredictorDep, run_in_executor
+from netpulse_ml.serving.cache import get_cached, make_cache_key, set_cached
 
 router = APIRouter()
 
@@ -21,6 +23,11 @@ async def get_fleet_clusters(
 
     if not clusterer.is_fitted:
         raise HTTPException(status_code=503, detail="Fleet clusterer not yet trained")
+
+    cache_key = make_cache_key("clusters")
+    cached = await get_cached(cache_key)
+    if cached is not None:
+        return FleetClustersResponse(**cached)
 
     fleet_df = await store.get_fleet_features()
     if fleet_df.empty:
@@ -48,13 +55,15 @@ async def get_fleet_clusters(
                 avgDlMbps=s.get("avg_dl_mbps_latest", 0.0),
             ))
 
-    return FleetClustersResponse(
+    response = FleetClustersResponse(
         clusters=clusters,
         outliers=outlier_info,
         clusterCount=len(clusters),
         clusteredAt=now,
         modelVersion=clusterer.version,
     )
+    await set_cached(cache_key, response.model_dump(mode="json"), 300)  # 5 min cache
+    return response
 
 
 @router.get("/fleet/segments/{cluster_id}/devices")

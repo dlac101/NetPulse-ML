@@ -5,8 +5,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 
 from netpulse_ml.api.schemas import ChurnListResponse, ChurnPredictionResponse, PaginationMeta
+from netpulse_ml.config import settings
 from netpulse_ml.dependencies import FeatureStoreDep, PredictorDep, run_in_executor
 from netpulse_ml.models.churn_predictor import score_to_risk_level
+from netpulse_ml.serving.cache import get_cached, make_cache_key, set_cached
 
 router = APIRouter()
 
@@ -24,6 +26,11 @@ async def list_churn_predictions(
 
     if not model.is_fitted:
         raise HTTPException(status_code=503, detail="Churn predictor not yet trained")
+
+    cache_key = make_cache_key("churn", risk_level=risk_level, limit=limit, offset=offset)
+    cached = await get_cached(cache_key)
+    if cached is not None:
+        return ChurnListResponse(**cached)
 
     fleet_df = await store.get_fleet_features()
     if fleet_df.empty:
@@ -64,10 +71,12 @@ async def list_churn_predictions(
     total = len(items)
     items = items[offset : offset + limit]
 
-    return ChurnListResponse(
+    response = ChurnListResponse(
         data=items,
         pagination=PaginationMeta(total=total, limit=limit, offset=offset),
     )
+    await set_cached(cache_key, response.model_dump(mode="json"), settings.cache_ttl_churn)
+    return response
 
 
 @router.get("/subscribers/{subscriber_id}/churn", response_model=ChurnPredictionResponse)

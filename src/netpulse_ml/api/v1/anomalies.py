@@ -12,6 +12,7 @@ from netpulse_ml.api.schemas import (
     PaginationMeta,
 )
 from netpulse_ml.dependencies import FeatureStoreDep, PredictorDep, run_in_executor
+from netpulse_ml.serving.cache import get_cached, make_cache_key, set_cached
 
 router = APIRouter()
 
@@ -29,6 +30,13 @@ async def list_anomalies(
 
     if not detector.is_fitted:
         raise HTTPException(status_code=503, detail="Anomaly detector not yet trained")
+
+    # Check Redis cache
+    from netpulse_ml.config import settings
+    cache_key = make_cache_key("anomalies", threshold=threshold, limit=limit, offset=offset)
+    cached = await get_cached(cache_key)
+    if cached is not None:
+        return AnomalyListResponse(**cached)
 
     fleet_df = await store.get_fleet_features()
     if fleet_df.empty:
@@ -62,10 +70,15 @@ async def list_anomalies(
     total = len(items)
     items = items[offset : offset + limit]
 
-    return AnomalyListResponse(
+    response = AnomalyListResponse(
         data=items,
         pagination=PaginationMeta(total=total, limit=limit, offset=offset),
     )
+
+    # Cache the result
+    await set_cached(cache_key, response.model_dump(mode="json"), settings.cache_ttl_anomaly)
+
+    return response
 
 
 @router.get("/devices/{device_id}/anomaly-score", response_model=AnomalyScoreResponse)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from netpulse_ml.api.schemas import ModelInfo, ModelListResponse
 from netpulse_ml.dependencies import PredictorDep, run_in_executor
+from netpulse_ml.serving.cache import invalidate
 from netpulse_ml.models.registry import list_models
 from netpulse_ml.training.pipeline import (
     train_all,
@@ -77,6 +78,9 @@ async def retrain_model(
             raise HTTPException(status_code=500, detail=f"Training failed: {e}")
 
         predictor.reload_model(model_name)
+
+    # Invalidate cached predictions for this model
+    await invalidate(f"np:{model_name.split('_')[0]}*")
 
     return {"model": model_name, "status": "completed", "metrics": metrics}
 

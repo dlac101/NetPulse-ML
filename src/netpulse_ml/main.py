@@ -18,6 +18,7 @@ from netpulse_ml.agents.orchestrator import AgentOrchestrator
 from netpulse_ml.llm.embedder import Embedder
 from netpulse_ml.llm.indexer import Indexer
 from netpulse_ml.llm.provider import OllamaProvider
+from netpulse_ml.serving.cache import close_redis, get_redis
 from netpulse_ml.llm.rag import RAGPipeline
 from netpulse_ml.llm.vector_store import VectorStore
 from netpulse_ml.serving.predictor import Predictor
@@ -46,6 +47,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize database tables
     await init_db()
     log.info("Database initialized")
+
+    # Connect Redis for prediction caching
+    await get_redis()
 
     # Load ML models into memory
     predictor = Predictor(settings.model_dir)
@@ -105,6 +109,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown
     log.info("Shutting down NetPulse ML backend")
+    await close_redis()
     await ollama.close()
     agent_orch.stop_scheduler()
     scheduler.shutdown(wait=False)
