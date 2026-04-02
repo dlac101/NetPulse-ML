@@ -84,8 +84,13 @@ class VectorStore:
         }
 
         if metadata_filter:
+            import re
+            _KEY_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
             conditions = []
             for i, (key, value) in enumerate(metadata_filter.items()):
+                # Validate key to prevent SQL injection via metadata key names
+                if not _KEY_RE.match(key):
+                    raise ValueError(f"Invalid metadata key: {key}")
                 param_name = f"meta_{i}"
                 conditions.append(f"metadata->>'{key}' = :{param_name}")
                 params[param_name] = str(value)

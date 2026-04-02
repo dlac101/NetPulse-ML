@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 
 from netpulse_ml.api.schemas import ChatRequest, ChatResponse, InsightResponse
+from netpulse_ml.config import settings
 from netpulse_ml.llm.rag import RAGPipeline
 
 router = APIRouter()
@@ -26,7 +27,7 @@ async def fleet_insight(request: Request) -> InsightResponse:
     try:
         summary = await rag.fleet_insight()
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {e}")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
 
     return InsightResponse(
         content=summary,
@@ -43,7 +44,7 @@ async def device_insight(request: Request, device_id: str) -> InsightResponse:
     try:
         diagnosis = await rag.device_diagnosis(device_id)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {e}")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
 
     return InsightResponse(
         content=diagnosis,
@@ -60,7 +61,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
     try:
         answer = await rag.chat(body.message)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM generation failed: {e}")
+        raise HTTPException(status_code=502, detail="LLM generation temporarily unavailable")
 
     return ChatResponse(
         message=body.message,
@@ -73,6 +74,13 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
 @router.websocket("/chat/ws")
 async def chat_websocket(websocket: WebSocket) -> None:
     """WebSocket endpoint for streaming chat responses token by token."""
+    # Authenticate WebSocket via query param (router-level Depends doesn't apply to WS)
+    if settings.api_key:
+        token = websocket.query_params.get("token", "")
+        if token != settings.api_key:
+            await websocket.close(code=4001)
+            return
+
     await websocket.accept()
 
     rag = getattr(websocket.app.state, "rag_pipeline", None)

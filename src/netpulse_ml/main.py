@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize LLM / RAG pipeline
     ollama = OllamaProvider()
     embedder = Embedder()
-    embedder.load()
+    await embedder.load_async()  # Offload CPU-bound model loading to thread
     vector_store = VectorStore()
     await vector_store.initialize()
     indexer = Indexer(embedder, vector_store)

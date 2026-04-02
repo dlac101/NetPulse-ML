@@ -33,7 +33,7 @@ class RAGPipeline:
     async def _retrieve_context(self, query: str, top_k: int | None = None) -> str:
         """Embed query and retrieve relevant documents."""
         k = top_k or settings.rag_top_k
-        query_embedding = self._embedder.embed_text(query)
+        query_embedding = await self._embedder.aembed_text(query)
         docs = await self._vector_store.search(query_embedding, top_k=k)
 
         if not docs:

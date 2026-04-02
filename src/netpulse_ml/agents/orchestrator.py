@@ -34,12 +34,12 @@ class AgentOrchestrator:
         self._last_scan_at: datetime | None = None
         self._last_scan_flagged: int = 0
         self._total_runs: int = 0
-        self._is_running: bool = False
+        self._scan_lock = asyncio.Lock()  # Prevents concurrent fleet scans
 
     @property
     def status(self) -> dict:
         return {
-            "isRunning": self._is_running,
+            "isRunning": self._scan_lock.locked(),
             "lastScanAt": self._last_scan_at.isoformat() if self._last_scan_at else None,
             "lastScanFlagged": self._last_scan_flagged,
             "totalRuns": self._total_runs,
@@ -74,13 +74,21 @@ class AgentOrchestrator:
 
         Returns the number of devices processed.
         """
-        if self._is_running:
+        if self._scan_lock.locked():
             log.warning("Fleet scan already in progress, skipping")
             return 0
 
-        self._is_running = True
+        async with self._scan_lock:
+            return await self._do_scan()
+
+    async def _do_scan(self) -> int:
+        """Internal scan implementation (called under lock)."""
         self._last_scan_at = datetime.now(timezone.utc)
         processed = 0
+
+        # Prune expired cooldowns to prevent memory leak
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=self._settings.agent_cooldown_hours)
+        self._cooldowns = {k: v for k, v in self._cooldowns.items() if v > cutoff}
 
         try:
             # Get fleet features
@@ -116,8 +124,6 @@ class AgentOrchestrator:
 
         except Exception as e:
             log.error("Fleet scan failed", error=str(e))
-        finally:
-            self._is_running = False
 
         return processed
 
@@ -137,9 +143,15 @@ class AgentOrchestrator:
         }
 
         try:
-            # Run the LangGraph
-            final_state = await self._graph.ainvoke(initial_state)
+            # Run the LangGraph with timeout (5 min max)
+            final_state = await asyncio.wait_for(
+                self._graph.ainvoke(initial_state), timeout=300
+            )
             status = final_state.get("status", "unknown")
+        except asyncio.TimeoutError:
+            log.error("Agent run timed out", device_id=device_id)
+            final_state = {**initial_state, "status": "failed", "error": "timeout"}
+            status = "failed"
         except Exception as e:
             log.error("Agent run failed", device_id=device_id, error=str(e))
             final_state = {**initial_state, "status": "failed", "error": str(e)}
