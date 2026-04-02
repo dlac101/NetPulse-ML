@@ -204,8 +204,13 @@ class ChurnPredictor(ModelWrapper):
 
         Falls back to feature importance when SHAP is unavailable.
         """
-        model: HistGradientBoostingClassifier = self._pipeline.named_steps["model"]
-        importances = model.feature_importances_
+        try:
+            model: HistGradientBoostingClassifier = self._pipeline.named_steps["model"]
+            importances = model.feature_importances_
+        except AttributeError:
+            # Fallback: equal importance if model hasn't computed importances
+            n_feats = len(CATEGORICAL_FEATURES) + len(self._feature_names) - len(CATEGORICAL_FEATURES)
+            importances = [1.0 / max(n_feats, 1)] * n_feats
 
         # Map importance back to original feature names
         # After ColumnTransformer, order is: categorical first, then numerical

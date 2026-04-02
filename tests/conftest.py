@@ -1,18 +1,11 @@
-"""Test configuration and fixtures."""
+"""Test configuration and fixtures.
 
-import pytest
-from fastapi.testclient import TestClient
+Note: Individual test modules import only what they need.
+The full FastAPI app is only imported for integration tests.
+"""
 
-from netpulse_ml.main import create_app
+import sys
+from pathlib import Path
 
-
-@pytest.fixture
-def app():
-    """Create a test app instance (without lifespan for unit tests)."""
-    return create_app()
-
-
-@pytest.fixture
-def client(app):
-    """Create a test HTTP client."""
-    return TestClient(app)
+# Ensure src is on the path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

@@ -4,6 +4,8 @@ Detects devices with unusual telemetry patterns across speed, QoE, WiFi,
 and traffic features. Outputs a 0-1 anomaly score (higher = more anomalous).
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
@@ -76,10 +78,13 @@ class AnomalyDetector(ModelWrapper):
         X_clean = self._validate_features(X.copy()).fillna(0)
         self._pipeline.fit(X_clean)
 
-        # Compute normalization bounds from training data
+        # Compute normalization bounds from training data (saved with artifact)
         raw_scores = self._pipeline.decision_function(X_clean)
         self._score_min = float(np.min(raw_scores))
         self._score_max = float(np.max(raw_scores))
+        # Store bounds in pipeline for save/load
+        self._pipeline.score_min_ = self._score_min
+        self._pipeline.score_max_ = self._score_max
 
         # Count anomalies in training set
         labels = self._pipeline.predict(X_clean)
@@ -94,6 +99,12 @@ class AnomalyDetector(ModelWrapper):
             "n_anomalies": n_anomalies,
             "anomaly_rate": n_anomalies / max(len(X_clean), 1),
         }
+
+    def load(self, path: Path) -> None:
+        """Load model and restore normalization bounds."""
+        super().load(path)
+        self._score_min = getattr(self._pipeline, "score_min_", 0.0)
+        self._score_max = getattr(self._pipeline, "score_max_", 1.0)
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Score devices for anomaly. Returns array of scores 0.0-1.0.
