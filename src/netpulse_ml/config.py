@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     agent_enable_auto_execute: bool = False  # Safety: disabled by default
     agent_verify_delay_minutes: int = 15
 
+    # Notifications
+    notifications_enabled: bool = True
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_tls: bool = True
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noc@netpulse.local"
+    notify_email_to: str = ""  # Default recipient for escalation emails
+    slack_webhook_url: str = ""  # Slack incoming webhook URL
+    notify_webhook_url: str = ""  # Generic webhook (PagerDuty, etc.)
+
     # LLM / Ollama
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"

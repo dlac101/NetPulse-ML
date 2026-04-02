@@ -13,6 +13,7 @@ from netpulse_ml.agents.tools import TOOL_REGISTRY
 from netpulse_ml.db.engine import async_session_factory
 from netpulse_ml.db.models import Recommendation
 from netpulse_ml.features.store import feature_store
+from netpulse_ml.notifications.dispatcher import notify_escalation
 from netpulse_ml.serving.predictor import Predictor
 
 log = structlog.get_logger()
@@ -204,6 +205,18 @@ async def escalate_node(state: RemediationState) -> dict:
         await session.commit()
 
     log.info("Agent escalated to human", device_id=device_id, recommendation_id=rec_id)
+
+    # Send notifications (email, Slack, webhook based on impact severity)
+    impact = _PLAN_RULES.get(state.get("diagnosis", ""), {}).get("impact", "low")
+    await notify_escalation(
+        device_id=device_id,
+        title=state.get("action_title", "Review device"),
+        description=state.get("action_description", "Agent-generated recommendation"),
+        diagnosis=state.get("diagnosis", "unknown"),
+        confidence=state.get("action_confidence", 0.0),
+        impact=impact,
+        recommendation_id=rec_id,
+    )
 
     return {"recommendation_id": rec_id, "status": "escalated"}
 
