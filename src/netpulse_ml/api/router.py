@@ -6,6 +6,7 @@ from netpulse_ml.api.v1 import (
     agents,
     labels,
     routers,
+    websocket_updates,
     anomalies,
     chat,
     churn,
@@ -30,3 +31,4 @@ api_router.include_router(agents.router, tags=["agents"])
 api_router.include_router(chat.router, tags=["chat"])
 api_router.include_router(labels.router, tags=["labels"])
 api_router.include_router(routers.router, tags=["routers"])
+api_router.include_router(websocket_updates.router, tags=["updates"])

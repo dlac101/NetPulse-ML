@@ -101,3 +101,17 @@ async def retrain_all_models(predictor: PredictorDep) -> dict:
             predictor.reload_model(name)
 
     return {"status": "completed", "results": results}
+
+@router.get("/models/{model_name}/versions")
+async def get_model_versions(model_name: str) -> dict:
+    """List all versions of a model with their metrics for A/B comparison."""
+    all_models = await list_models()
+    versions = [m for m in all_models if m['name'] == model_name]
+    if not versions:
+        raise HTTPException(status_code=404, detail=f"No versions found for {model_name}")
+
+    return {
+        "model": model_name,
+        "versions": versions,
+        "activeVersion": next((v['version'] for v in versions if v.get('isActive')), None),
+    }
